@@ -1292,3 +1292,6 @@ aarch64_builtin_vectorized_function (tree fndecl, tree type_out, tree type_in)
 }
 #undef AARCH64_CHECK_BUILTIN_MODE
 #undef AARCH64_FIND_FRINT_VARIANT
+
+
+#include "gt-aarch64-builtins.h"

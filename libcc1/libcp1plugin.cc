@@ -1,5 +1,5 @@
 /* Library interface to C front end
-   Copyright (C) 2014-2016 Free Software Foundation, Inc.
+   Copyright (C) 2014 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -50,19 +50,20 @@
 #include "tree.h"
 #include "fold-const.h"
 #include "stor-layout.h"
-#include "c-tree.h"
+#include "cp-tree.h"
 #include "toplev.h"
 #include "timevar.h"
 #include "hash-table.h"
 #include "tm.h"
 #include "c-family/c-pragma.h"
-#include "c-lang.h"
+// #include "c-lang.h"
 #include "diagnostic.h"
 #include "langhooks.h"
 #include "langhooks-def.h"
 
 #include "callbacks.hh"
 #include "connection.hh"
+#include "marshall-cp.hh"
 #include "rpc.hh"
 
 #ifdef __GNUC__
@@ -111,8 +112,11 @@ struct decl_addr_value
   tree address;
 };
 
-struct decl_addr_hasher : free_ptr_hash<decl_addr_value>
+struct decl_addr_hasher : typed_free_remove<decl_addr_value>
 {
+  typedef decl_addr_value *value_type;
+  typedef decl_addr_value *compare_type;
+
   static inline hashval_t hash (const decl_addr_value *);
   static inline bool equal (const decl_addr_value *, const decl_addr_value *);
 };
@@ -131,8 +135,11 @@ decl_addr_hasher::equal (const decl_addr_value *p1, const decl_addr_value *p2)
 
 
 
-struct string_hasher : nofree_ptr_hash<const char>
+struct string_hasher : typed_noop_remove<const char>
 {
+  typedef const char *value_type;
+  typedef const char *compare_type;
+
   static inline hashval_t hash (const char *s)
   {
     return htab_hash_string (s);
@@ -152,12 +159,12 @@ struct string_hasher : nofree_ptr_hash<const char>
 static void
 pushdecl_safe (tree decl)
 {
-  void (*save) (enum c_oracle_request, tree identifier);
+  void (*save) (enum cp_oracle_request, tree identifier);
 
-  save = c_binding_oracle;
-  c_binding_oracle = NULL;
+  save = cp_binding_oracle;
+  cp_binding_oracle = NULL;
   pushdecl (decl);
-  c_binding_oracle = save;
+  cp_binding_oracle = save;
 }
 
 
@@ -170,7 +177,7 @@ struct plugin_context : public cc1_plugin::connection
   hash_table<decl_addr_hasher> address_map;
 
   // A collection of trees that are preserved for the GC.
-  hash_table< nofree_ptr_hash<tree_node> > preserved;
+  hash_table< pointer_hash<tree_node> > preserved;
 
   // File name cache.
   hash_table<string_hasher> file_names;
@@ -239,28 +246,29 @@ plugin_context::mark ()
       ggc_mark ((*it)->address);
     }
 
-  for (hash_table< nofree_ptr_hash<tree_node> >::iterator
-	 it = preserved.begin (); it != preserved.end (); ++it)
+  for (hash_table< pointer_hash<tree_node> >::iterator it = preserved.begin ();
+       it != preserved.end ();
+       ++it)
     ggc_mark (&*it);
 }
 
 static void
-plugin_binding_oracle (enum c_oracle_request kind, tree identifier)
+plugin_binding_oracle (enum cp_oracle_request kind, tree identifier)
 {
-  enum gcc_c_oracle_request request;
+  enum gcc_cp_oracle_request request;
 
   gcc_assert (current_context != NULL);
 
   switch (kind)
     {
-    case C_ORACLE_SYMBOL:
-      request = GCC_C_ORACLE_SYMBOL;
+    case CP_ORACLE_SYMBOL:
+      request = GCC_CP_ORACLE_SYMBOL;
       break;
-    case C_ORACLE_TAG:
-      request = GCC_C_ORACLE_TAG;
+    case CP_ORACLE_TAG:
+      request = GCC_CP_ORACLE_TAG;
       break;
-    case C_ORACLE_LABEL:
-      request = GCC_C_ORACLE_LABEL;
+    case CP_ORACLE_LABEL:
+      request = GCC_CP_ORACLE_LABEL;
       break;
     default:
       abort ();
@@ -274,7 +282,7 @@ plugin_binding_oracle (enum c_oracle_request kind, tree identifier)
 static void
 plugin_pragma_user_expression (cpp_reader *)
 {
-  c_binding_oracle = plugin_binding_oracle;
+  cp_binding_oracle = plugin_binding_oracle;
 }
 
 static void
@@ -302,7 +310,7 @@ address_rewriter (tree *in, int *walk_subtrees, void *arg)
       // At this point we don't need VLA sizes for gdb-supplied
       // variables, and having them here confuses later passes, so we
       // drop them.
-      if (C_TYPE_VARIABLE_SIZE (TREE_TYPE (*in)))
+      if (array_of_runtime_bound_p (TREE_TYPE (*in)))
 	{
 	  TREE_TYPE (*in)
 	    = build_array_type_nelts (TREE_TYPE (TREE_TYPE (*in)), 1);
@@ -370,7 +378,7 @@ rewrite_decls_to_addresses (void *function_in, void *)
 gcc_decl
 plugin_build_decl (cc1_plugin::connection *self,
 		   const char *name,
-		   enum gcc_c_symbol_kind sym_kind,
+		   enum gcc_cp_symbol_kind sym_kind,
 		   gcc_type sym_type_in,
 		   const char *substitution_name,
 		   gcc_address address,
@@ -385,19 +393,19 @@ plugin_build_decl (cc1_plugin::connection *self,
 
   switch (sym_kind)
     {
-    case GCC_C_SYMBOL_FUNCTION:
+    case GCC_CP_SYMBOL_FUNCTION:
       code = FUNCTION_DECL;
       break;
 
-    case GCC_C_SYMBOL_VARIABLE:
+    case GCC_CP_SYMBOL_VARIABLE:
       code = VAR_DECL;
       break;
 
-    case GCC_C_SYMBOL_TYPEDEF:
+    case GCC_CP_SYMBOL_TYPEDEF:
       code = TYPE_DECL;
       break;
 
-    case GCC_C_SYMBOL_LABEL:
+    case GCC_CP_SYMBOL_LABEL:
       // FIXME: we aren't ready to handle labels yet.
       // It isn't clear how to translate them properly
       // and in any case a "goto" isn't likely to work.
@@ -413,7 +421,7 @@ plugin_build_decl (cc1_plugin::connection *self,
   TREE_USED (decl) = 1;
   TREE_ADDRESSABLE (decl) = 1;
 
-  if (sym_kind != GCC_C_SYMBOL_TYPEDEF)
+  if (sym_kind != GCC_CP_SYMBOL_TYPEDEF)
     {
       decl_addr_value value;
 
@@ -445,9 +453,21 @@ plugin_bind (cc1_plugin::connection *,
 	     gcc_decl decl_in, int is_global)
 {
   tree decl = convert_in (decl_in);
-  c_bind (DECL_SOURCE_LOCATION (decl), decl, is_global);
+  cp_bind (DECL_SOURCE_LOCATION (decl), decl, is_global);
   rest_of_decl_compilation (decl, is_global, 0);
   return 1;
+}
+
+static tree name_placeholder;
+
+void
+cp_pushtag (location_t loc, tree name, tree type)
+{
+  tree decl = TYPE_NAME (type);
+  DECL_SOURCE_LOCATION (decl) = loc;
+  gcc_assert (DECL_NAME (decl) == name_placeholder || DECL_NAME (decl) == name);
+  DECL_NAME (decl) = name;
+  pushtag (name, type, ts_global);
 }
 
 int
@@ -456,8 +476,8 @@ plugin_tagbind (cc1_plugin::connection *self,
 		const char *filename, unsigned int line_number)
 {
   plugin_context *ctx = static_cast<plugin_context *> (self);
-  c_pushtag (ctx->get_source_location (filename, line_number),
-	     get_identifier (name), convert_in (tagged_type));
+  cp_pushtag (ctx->get_source_location (filename, line_number),
+	      get_identifier (name), convert_in (tagged_type));
   return 1;
 }
 
@@ -469,18 +489,39 @@ plugin_build_pointer_type (cc1_plugin::connection *,
   return convert_out (build_pointer_type (convert_in (base_type)));
 }
 
+// TYPE_NAME needs to be a valid pointer, even if there is no name available.
+
+static tree
+build_anonymous_node (enum tree_code code)
+{
+  tree node;
+  if (code == RECORD_TYPE)
+    node = make_class_type (code);
+  else
+    node = make_node (code);
+  if (!name_placeholder)
+    name_placeholder = get_identifier ("name placeholder");
+  tree type_decl = build_decl (input_location, TYPE_DECL,
+			       name_placeholder, node);
+  TYPE_NAME (node) = type_decl;
+  TYPE_STUB_DECL (node) = type_decl;
+  return node;
+}
+
 gcc_type
 plugin_build_record_type (cc1_plugin::connection *self)
 {
   plugin_context *ctx = static_cast<plugin_context *> (self);
-  return convert_out (ctx->preserve (make_node (RECORD_TYPE)));
+  tree node = build_anonymous_node (RECORD_TYPE);
+  xref_basetypes (node, NULL); // for now
+  return convert_out (ctx->preserve (node));
 }
 
 gcc_type
 plugin_build_union_type (cc1_plugin::connection *self)
 {
   plugin_context *ctx = static_cast<plugin_context *> (self);
-  return convert_out (ctx->preserve (make_node (UNION_TYPE)));
+  return convert_out (ctx->preserve (build_anonymous_node (UNION_TYPE)));
 }
 
 int
@@ -527,6 +568,9 @@ plugin_build_add_field (cc1_plugin::connection *,
   DECL_CHAIN (decl) = TYPE_FIELDS (record_or_union_type);
   TYPE_FIELDS (record_or_union_type) = decl;
 
+  // Now we may have to retrofit the newly-added binding into the
+  // active bindings.
+
   return 1;
 }
 
@@ -553,8 +597,8 @@ plugin_finish_record_or_union (cc1_plugin::connection *,
     {
       // FIXME there's no way to get this from DWARF,
       // or even, it seems, a particularly good way to deduce it.
-      SET_TYPE_ALIGN (record_or_union_type,
-		      TYPE_PRECISION (pointer_sized_int_node));
+      TYPE_ALIGN (record_or_union_type)
+	= TYPE_PRECISION (pointer_sized_int_node);
 
       TYPE_SIZE (record_or_union_type) = bitsize_int (size_in_bytes
 						      * BITS_PER_UNIT);
@@ -577,7 +621,7 @@ plugin_build_enum_type (cc1_plugin::connection *self,
   if (underlying_int_type == error_mark_node)
     return convert_out (error_mark_node);
 
-  tree result = make_node (ENUMERAL_TYPE);
+  tree result = build_anonymous_node (ENUMERAL_TYPE);
 
   TYPE_PRECISION (result) = TYPE_PRECISION (underlying_int_type);
   TYPE_UNSIGNED (result) = TYPE_UNSIGNED (underlying_int_type);
@@ -733,8 +777,8 @@ plugin_build_vla_array_type (cc1_plugin::connection *self,
   tree upper_bound = lookup_name (get_identifier (upper_bound_name));
   tree range = build_index_type (upper_bound);
 
-  tree result = build_array_type (element_type, range);
-  C_TYPE_VARIABLE_SIZE (result) = 1;
+  tree result = build_cplus_array_type (element_type, range);
+  // C_TYPE_VARIABLE_SIZE (result) = 1;
 
   plugin_context *ctx = static_cast<plugin_context *> (self);
   return convert_out (ctx->preserve (result));
@@ -743,16 +787,16 @@ plugin_build_vla_array_type (cc1_plugin::connection *self,
 gcc_type
 plugin_build_qualified_type (cc1_plugin::connection *,
 			     gcc_type unqualified_type_in,
-			     enum gcc_qualifiers qualifiers)
+			     enum gcc_cp_qualifiers qualifiers)
 {
   tree unqualified_type = convert_in (unqualified_type_in);
   int quals = 0;
 
-  if ((qualifiers & GCC_QUALIFIER_CONST) != 0)
+  if ((qualifiers & GCC_CP_QUALIFIER_CONST) != 0)
     quals |= TYPE_QUAL_CONST;
-  if ((qualifiers & GCC_QUALIFIER_VOLATILE) != 0)
+  if ((qualifiers & GCC_CP_QUALIFIER_VOLATILE) != 0)
     quals |= TYPE_QUAL_VOLATILE;
-  if ((qualifiers & GCC_QUALIFIER_RESTRICT) != 0)
+  if ((qualifiers & GCC_CP_QUALIFIER_RESTRICT) != 0)
     quals |= TYPE_QUAL_RESTRICT;
 
   return convert_out (build_qualified_type (unqualified_type, quals));
@@ -848,7 +892,7 @@ plugin_init (struct plugin_name_args *plugin_info,
       || ! ::cc1_plugin::unmarshall (current_context, &version))
     fatal_error (input_location,
 		 "%s: handshake failed", plugin_info->base_name);
-  if (version != GCC_C_FE_VERSION_0)
+  if (version != GCC_CP_FE_VERSION_0)
     fatal_error (input_location,
 		 "%s: unknown version in handshake", plugin_info->base_name);
 
@@ -907,7 +951,7 @@ plugin_init (struct plugin_name_args *plugin_info,
     current_context->add_callback (# N, fun);		\
   }
 
-#include "gcc-c-fe.def"
+#include "gcc-cp-fe.def"
 
 #undef GCC_METHOD0
 #undef GCC_METHOD1

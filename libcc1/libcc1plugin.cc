@@ -714,22 +714,11 @@ safe_lookup_builtin_type (const char *builtin_name)
   return result;
 }
 
-gcc_type
-plugin_int_type (cc1_plugin::connection *self,
-		 int is_unsigned, unsigned long size_in_bytes,
-		 const char *builtin_name)
+static gcc_type
+plugin_int_check (cc1_plugin::connection *self,
+		  int is_unsigned, unsigned long size_in_bytes,
+		  tree result)
 {
-  tree result;
-
-  if (builtin_name)
-    {
-      result = safe_lookup_builtin_type (builtin_name);
-      gcc_assert (!result || TREE_CODE (result) == INTEGER_TYPE);
-    }
-  else
-    result = c_common_type_for_size (BITS_PER_UNIT * size_in_bytes,
-				     is_unsigned);
-
   if (result == NULL_TREE)
     result = error_mark_node;
   else
@@ -745,29 +734,39 @@ plugin_int_type (cc1_plugin::connection *self,
 }
 
 gcc_type
+plugin_int_type_v0 (cc1_plugin::connection *self,
+		    int is_unsigned, unsigned long size_in_bytes)
+{
+  tree result = c_common_type_for_size (BITS_PER_UNIT * size_in_bytes,
+					is_unsigned);
+
+  return plugin_int_check (self, is_unsigned, size_in_bytes, result);
+}
+
+gcc_type
+plugin_int_type (cc1_plugin::connection *self,
+		 int is_unsigned, unsigned long size_in_bytes,
+		 const char *builtin_name)
+{
+  if (!builtin_name)
+    return plugin_int_type_v0 (self, is_unsigned, size_in_bytes);
+
+  tree result = safe_lookup_builtin_type (builtin_name);
+  gcc_assert (!result || TREE_CODE (result) == INTEGER_TYPE);
+
+  return plugin_int_check (self, is_unsigned, size_in_bytes, result);
+}
+
+gcc_type
 plugin_char_type (cc1_plugin::connection *)
 {
   return convert_out (char_type_node);
 }
 
 gcc_type
-plugin_float_type (cc1_plugin::connection *,
-		   unsigned long size_in_bytes,
-		   const char *builtin_name)
+plugin_float_type_v0 (cc1_plugin::connection *,
+		   unsigned long size_in_bytes)
 {
-  if (builtin_name)
-    {
-      tree result = safe_lookup_builtin_type (builtin_name);
-
-      if (!result)
-	return convert_out (error_mark_node);
-
-      gcc_assert (TREE_CODE (result) == REAL_TYPE);
-      gcc_assert (BITS_PER_UNIT * size_in_bytes == TYPE_PRECISION (result));
-
-      return convert_out (result);
-    }
-
   if (BITS_PER_UNIT * size_in_bytes == TYPE_PRECISION (float_type_node))
     return convert_out (float_type_node);
   if (BITS_PER_UNIT * size_in_bytes == TYPE_PRECISION (double_type_node))
@@ -775,6 +774,25 @@ plugin_float_type (cc1_plugin::connection *,
   if (BITS_PER_UNIT * size_in_bytes == TYPE_PRECISION (long_double_type_node))
     return convert_out (long_double_type_node);
   return convert_out (error_mark_node);
+}
+
+gcc_type
+plugin_float_type (cc1_plugin::connection *self,
+		   unsigned long size_in_bytes,
+		   const char *builtin_name)
+{
+  if (!builtin_name)
+    return plugin_float_type_v0 (self, size_in_bytes);
+
+  tree result = safe_lookup_builtin_type (builtin_name);
+
+  if (!result)
+    return convert_out (error_mark_node);
+
+  gcc_assert (TREE_CODE (result) == REAL_TYPE);
+  gcc_assert (BITS_PER_UNIT * size_in_bytes == TYPE_PRECISION (result));
+
+  return convert_out (result);
 }
 
 gcc_type
@@ -929,7 +947,7 @@ plugin_init (struct plugin_name_args *plugin_info,
       || ! ::cc1_plugin::unmarshall (current_context, &version))
     fatal_error (input_location,
 		 "%s: handshake failed", plugin_info->base_name);
-  if (version != GCC_C_FE_VERSION_0)
+  if (version != GCC_C_FE_VERSION_1)
     fatal_error (input_location,
 		 "%s: unknown version in handshake", plugin_info->base_name);
 

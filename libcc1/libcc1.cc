@@ -536,7 +536,7 @@ fork_exec (libcc1 *self, char **argv, int spair_fds[2], int stderr_fds[2])
 
       cc1_plugin::status result = cc1_plugin::FAIL;
       if (self->connection->send ('H')
-	  && ::cc1_plugin::marshall (self->connection, GCC_C_FE_VERSION_0))
+	  && ::cc1_plugin::marshall (self->connection, GCC_C_FE_VERSION_1))
 	result = self->connection->wait_for_query ();
 
       close (spair_fds[0]);
@@ -667,7 +667,7 @@ gcc_c_fe_context (enum gcc_base_api_version base_version,
 		  enum gcc_c_api_version c_version)
 {
   if ((base_version != GCC_FE_VERSION_0 && base_version != GCC_FE_VERSION_1)
-      || c_version != GCC_C_FE_VERSION_0)
+      || (c_version != GCC_C_FE_VERSION_0 && c_version != GCC_C_FE_VERSION_1))
     return NULL;
 
   return new libcc1 (&vtable, &c_vtable);

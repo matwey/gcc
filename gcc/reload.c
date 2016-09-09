@@ -3924,6 +3924,12 @@ find_reloads (rtx insn, int replace, int ind_levels, int live_known,
 	= *recog_data.operand_loc[commutative + 1];
       *recog_data.operand_loc[commutative + 1] = tem;
 
+      for (i = 0; i < recog_data.n_dups; i++)
+	if (recog_data.dup_num[i] == commutative
+	    || recog_data.dup_num[i] == commutative + 1)
+	  *recog_data.dup_loc[i]
+	    = recog_data.operand[(int) recog_data.dup_num[i]];
+
       for (i = 0; i < n_reloads; i++)
 	{
 	  if (rld[i].opnum == commutative)

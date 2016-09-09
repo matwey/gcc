@@ -2877,6 +2877,9 @@ ia64_compute_frame_size (HOST_WIDE_INT size)
   else
     pretend_args_size = crtl->args.pretend_args_size;
 
+  if (FRAME_GROWS_DOWNWARD)
+    size = IA64_STACK_ALIGN (size);
+
   total_size = (spill_size + extra_spill_size + size + pretend_args_size
 		+ crtl->outgoing_args_size);
   total_size = IA64_STACK_ALIGN (total_size);
@@ -2911,9 +2914,9 @@ ia64_can_eliminate (const int from ATTRIBUTE_UNUSED, const int to)
 HOST_WIDE_INT
 ia64_initial_elimination_offset (int from, int to)
 {
-  HOST_WIDE_INT offset;
+  HOST_WIDE_INT offset, size = get_frame_size ();
 
-  ia64_compute_frame_size (get_frame_size ());
+  ia64_compute_frame_size (size);
   switch (from)
     {
     case FRAME_POINTER_REGNUM:
@@ -2934,6 +2937,7 @@ ia64_initial_elimination_offset (int from, int to)
 	default:
 	  gcc_unreachable ();
 	}
+      offset += FRAME_GROWS_DOWNWARD ? IA64_STACK_ALIGN (size) : 0;
       break;
 
     case ARG_POINTER_REGNUM:

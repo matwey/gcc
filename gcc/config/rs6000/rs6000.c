@@ -17094,6 +17094,7 @@ rs6000_secondary_reload_inner (rtx reg, rtx mem, rtx scratch, bool store_p)
     case FLOAT_REGS:
       if (legitimate_indirect_address_p (addr, false)	/* reg */
 	  || legitimate_indexed_address_p (addr, false)	/* reg+reg */
+	  || legitimate_constant_pool_address_p (addr, mode, false)
 	  || ((GET_MODE_SIZE (mode) == 4 || GET_MODE_SIZE (mode) == 8)
 	      && and_op2 == NULL_RTX
 	      && scratch_or_premodify == scratch

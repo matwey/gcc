@@ -190,7 +190,7 @@ in the following sections.
 -fno-default-inline  -fvisibility-inlines-hidden @gol
 -Wabi  -Wctor-dtor-privacy @gol
 -Wnon-virtual-dtor  -Wreorder @gol
--Weffc++  -Wno-deprecated  -Wstrict-null-sentinel @gol
+-Weffc++  -Wno-deprecated @gol
 -Wno-non-template-friend  -Wold-style-cast @gol
 -Woverloaded-virtual  -Wno-pmf-conversions @gol
 -Wsign-promo}
@@ -587,6 +587,12 @@ Objective-C and Objective-C++ Dialects}.
 @gccoptlist{-m6811  -m6812  -m68hc11  -m68hc12   -m68hcs12 @gol
 -mauto-incdec  -minmax  -mlong-calls  -mshort @gol
 -msoft-reg-count=@var{count}}
+
+@emph{AVR32 Options}
+@gccoptlist{-muse-rodata-section -mhard-float -msoft-float -mrelax @gol
+-mforce-double-align -mno-init-got -mrelax -mmd-reorg-opt -masm-addr-pseudos @gol
+-mpart=@var{part} -mcpu=@var{cpu} -march=@var{arch} @gol  
+-mfast-float -mimm-in-const-pool}
 
 @emph{MCore Options}
 @gccoptlist{-mhardlit  -mno-hardlit  -mdiv  -mno-div  -mrelax-immediates @gol
@@ -1868,14 +1874,6 @@ to filter out those warnings.
 @opindex Wno-deprecated
 Do not warn about usage of deprecated features.  @xref{Deprecated Features}.
 
-@item -Wstrict-null-sentinel @r{(C++ only)}
-@opindex Wstrict-null-sentinel
-Warn also about the use of an uncasted @code{NULL} as sentinel.  When
-compiling only with GCC this is a valid sentinel, as @code{NULL} is defined
-to @code{__null}.  Although it is a null pointer constant not a null pointer,
-it is guaranteed to of the same size as a pointer.  But this use is
-not portable across different compilers.
-
 @item -Wno-non-template-friend @r{(C++ only)}
 @opindex Wno-non-template-friend
 Disable warnings when non-templatized friend functions are declared
@@ -2732,13 +2730,11 @@ requiring @option{-O}.
 If you want to warn about code which uses the uninitialized value of the
 variable in its own initializer, use the @option{-Winit-self} option.
 
-These warnings occur for individual uninitialized or clobbered
-elements of structure, union or array variables as well as for
-variables which are uninitialized or clobbered as a whole.  They do
-not occur for variables or elements declared @code{volatile}.  Because
-these warnings depend on optimization, the exact variables or elements
-for which there are warnings will depend on the precise optimization
-options and version of GCC used.
+These warnings occur only for variables that are candidates for
+register allocation.  Therefore, they do not occur for a variable that
+is declared @code{volatile}, or whose address is taken, or whose size
+is other than 1, 2, 4 or 8 bytes.  Also, they do not occur for
+structures, unions or arrays, even when they are in registers.
 
 Note that there may be no warning about a variable that is used only
 to compute a value that itself is never used, because such
@@ -6201,10 +6197,6 @@ If number of candidates in the set is smaller than this value,
 we always try to remove unnecessary ivs from the set during its
 optimization when a new iv is added to the set.
 
-@item scev-max-expr-size
-Bound on size of expressions used in the scalar evolutions analyzer.
-Large expressions slow the analyzer.
-
 @item vect-max-version-checks
 The maximum number of runtime checks that can be performed when doing
 loop versioning in the vectorizer.  See option ftree-vect-loop-version
@@ -7402,7 +7394,7 @@ platform.
 * ARC Options::
 * ARM Options::
 * AVR Options::
-* Blackfin Options::
+* AVR32 Options::
 * CRIS Options::
 * CRX Options::
 * Darwin Options::
@@ -7867,81 +7859,80 @@ comply to the C standards, but it will provide you with smaller code
 size.
 @end table
 
-@node Blackfin Options
-@subsection Blackfin Options
-@cindex Blackfin Options
+@node AVR32 Options
+@subsection AVR32 Options
+@cindex AVR32 Options
+
+These options are defined for AVR32 implementations:
 
 @table @gcctabopt
-@item -momit-leaf-frame-pointer
-@opindex momit-leaf-frame-pointer
-Don't keep the frame pointer in a register for leaf functions.  This
-avoids the instructions to save, set up and restore frame pointers and
-makes an extra register available in leaf functions.  The option
-@option{-fomit-frame-pointer} removes the frame pointer for all functions
-which might make debugging harder.
+@item -muse-rodata-section
+@opindex muse-rodata-section
+Use section @samp{.rodata} for read-only data instead of @samp{.text}.
 
-@item -mspecld-anomaly
-@opindex mspecld-anomaly
-When enabled, the compiler will ensure that the generated code does not
-contain speculative loads after jump instructions.  This option is enabled
-by default.
+@item -mhard-float
+@opindex mhard-float
+Use floating point coprocessor instructions.
 
-@item -mno-specld-anomaly
-@opindex mno-specld-anomaly
-Don't generate extra code to prevent speculative loads from occurring.
+@item -msoft-float
+@opindex msoft-float
+Use software floating-point library for floating-point operations.
 
-@item -mcsync-anomaly
-@opindex mcsync-anomaly
-When enabled, the compiler will ensure that the generated code does not
-contain CSYNC or SSYNC instructions too soon after conditional branches.
-This option is enabled by default.
+@item -mforce-double-align
+@opindex mforce-double-align
+Force double-word alignment for double-word memory accesses.
 
-@item -mno-csync-anomaly
-@opindex mno-csync-anomaly
-Don't generate extra code to prevent CSYNC or SSYNC instructions from
-occurring too soon after a conditional branch.
+@item -mno-init-got
+@opindex mno-init-got
+Do not initialize the GOT register before using it when compiling PIC
+code.
 
-@item -mlow-64k
-@opindex mlow-64k
-When enabled, the compiler is free to take advantage of the knowledge that
-the entire program fits into the low 64k of memory.
+@item -mrelax
+@opindex mrelax
+Let invoked assembler and linker do relaxing 
+(Enabled by default when optimization level is >1).
+This means that when the address of symbols are known at link time,
+the linker can optimize @samp{icall} and @samp{mcall}
+instructions into a @samp{rcall} instruction if possible. 
+Loading the address of a symbol can also be optimized.  
 
-@item -mno-low-64k
-@opindex mno-low-64k
-Assume that the program is arbitrarily large.  This is the default.
+@item -mmd-reorg-opt
+@opindex mmd-reorg-opt
+Perform machine dependent optimizations in reorg stage.
 
-@item -mid-shared-library
-@opindex mid-shared-library
-Generate code that supports shared libraries via the library ID method.
-This allows for execute in place and shared libraries in an environment
-without virtual memory management.  This option implies @option{-fPIC}.
+@item -masm-addr-pseudos
+@opindex masm-addr-pseudos
+Use assembler pseudo-instructions lda.w and call for handling direct
+addresses. (Enabled by default)
 
-@item -mno-id-shared-library
-@opindex mno-id-shared-library
-Generate code that doesn't assume ID based shared libraries are being used.
-This is the default.
+@item -mpart=@var{part}
+@opindex mpart
+Generate code for the specified part. Permissible parts are: 
+@samp{ap7000}, @samp{ap7010},@samp{ap7020},
+@samp{uc3a0128}, @samp{uc3a0256}, @samp{uc3a0512},
+@samp{uc3a1128}, @samp{uc3a1256}, @samp{uc3a1512},
+@samp{uc3b064}, @samp{uc3b0128}, @samp{uc3b0256},
+@samp{uc3b164}, @samp{uc3b1128}, @samp{uc3b1256}.
 
-@item -mshared-library-id=n
-@opindex mshared-library-id
-Specified the identification number of the ID based shared library being
-compiled.  Specifying a value of 0 will generate more compact code, specifying
-other values will force the allocation of that number to the current
-library but is no more space or time efficient than omitting this option.
+@item -mcpu=@var{cpu-type}
+@opindex mcpu
+Same as -mpart. Obsolete.
 
-@item -mlong-calls
-@itemx -mno-long-calls
-@opindex mlong-calls
-@opindex mno-long-calls
-Tells the compiler to perform function calls by first loading the
-address of the function into a register and then performing a subroutine
-call on this register.  This switch is needed if the target function
-will lie outside of the 24 bit addressing range of the offset based
-version of subroutine call instruction.
+@item -march=@var{arch}
+@opindex march
+Generate code for the specified architecture. Permissible architectures are:
+@samp{ap} and @samp{uc}. 
 
-This feature is not enabled by default.  Specifying
-@option{-mno-long-calls} will restore the default behavior.  Note these
-switches have no effect on how the compiler generates code to handle
-function calls via function pointers.
+@item -mfast-float
+@opindex mfast-float
+Enable fast floating-point library that does not conform to ieee but is still good enough
+for most applications. The fast floating-point library does not round to the nearest even
+but away from zero. Enabled by default if the -funsafe-math-optimizations switch is specified. 
+
+@item -mimm-in-const-pool
+@opindex mimm-in-const-pool
+Put large immediates in constant pool. This is enabled by default for archs with insn-cache.
+
 @end table
 
 @node CRIS Options

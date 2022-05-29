@@ -3519,18 +3519,19 @@ emit_single_push_insn (enum machine_mode mode, rtx x, tree type)
     }
   else
     {
+      emit_move_insn (stack_pointer_rtx,
+		      expand_binop (Pmode,
 #ifdef STACK_GROWS_DOWNWARD
-      /* ??? This seems wrong if STACK_PUSH_CODE == POST_DEC.  */
-      dest_addr = gen_rtx_PLUS (Pmode, stack_pointer_rtx,
-				GEN_INT (-(HOST_WIDE_INT) rounded_size));
+				    sub_optab,
 #else
-      /* ??? This seems wrong if STACK_PUSH_CODE == POST_INC.  */
-      dest_addr = gen_rtx_PLUS (Pmode, stack_pointer_rtx,
-				GEN_INT (rounded_size));
+				    add_optab,
 #endif
-      dest_addr = gen_rtx_PRE_MODIFY (Pmode, stack_pointer_rtx, dest_addr);
+				    stack_pointer_rtx,
+				    GEN_INT (rounded_size),
+				    NULL_RTX, 0, OPTAB_LIB_WIDEN));
+      dest_addr = stack_pointer_rtx;
     }
-
+  
   dest = gen_rtx_MEM (mode, dest_addr);
 
   if (type != 0)
@@ -5509,7 +5510,21 @@ store_field (rtx target, HOST_WIDE_INT bitsize, HOST_WIDE_INT bitpos,
      is a bit field, we cannot use addressing to access it.
      Use bit-field techniques or SUBREG to store in it.  */
 
-  if (mode == VOIDmode
+  if (
+      /* NB! Added for AVR32, and I think this should be true for
+         all targets not using narrow volatile bitfields. If the
+         bitfield is volatile then we need to perform an access
+         consistent with the container type. */
+      (MEM_P (target) 
+       && MEM_VOLATILE_P (target) 
+       && ((GET_MODE (target) != BLKmode
+            && GET_MODE_BITSIZE (GET_MODE (target)) > bitsize )
+           /* If BLKmode, check if this is a record. Do not know 
+              if this is really necesarry though...*/
+           || (GET_MODE (target) == BLKmode
+               && TREE_CODE (type) == RECORD_TYPE))
+       && !targetm.narrow_volatile_bitfield ())
+      || mode == VOIDmode
       || (mode != BLKmode && ! direct_store[(int) mode]
 	  && GET_MODE_CLASS (mode) != MODE_COMPLEX_INT
 	  && GET_MODE_CLASS (mode) != MODE_COMPLEX_FLOAT)
@@ -7560,7 +7575,21 @@ expand_expr_real_1 (tree exp, rtx target, enum machine_mode tmode,
 	   by doing the extract into an object as wide as the field
 	   (which we know to be the width of a basic mode), then
 	   storing into memory, and changing the mode to BLKmode.  */
-	if (mode1 == VOIDmode
+       if (      
+            /* NB! Added for AVR32, and I think this should be true for
+               all targets not using narrow volatile bitfields. If the
+               bitfield is volatile then we need to perform an access
+               consistent with the container type. */
+            (MEM_P (op0) 
+             && MEM_VOLATILE_P (op0) 
+             && ((GET_MODE (op0) != BLKmode
+                  && GET_MODE_BITSIZE (GET_MODE (op0)) > bitsize )
+                 /* If BLKmode, check if this is a record. Do not know 
+                    if this is really necesarry though...*/
+                 || (GET_MODE (op0) == BLKmode
+                     && TREE_CODE (type) == RECORD_TYPE))
+             && !targetm.narrow_volatile_bitfield ())
+            || mode1 == VOIDmode
 	    || REG_P (op0) || GET_CODE (op0) == SUBREG
 	    || (mode1 != BLKmode && ! direct_load[(int) mode1]
 		&& GET_MODE_CLASS (mode) != MODE_COMPLEX_INT

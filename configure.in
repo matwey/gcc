@@ -503,6 +503,9 @@ case "${target}" in
   arm-*-riscix*)
     noconfigdirs="$noconfigdirs ld target-libgloss ${libgcj}"
     ;;
+  avr32-*-*)
+    noconfigdirs="$noconfigdirs target-libiberty target-libmudflap target-libffi ${libgcj}"
+    ;;
   avr-*-*)
     noconfigdirs="$noconfigdirs target-libiberty target-libstdc++-v3 ${libgcj}"
     ;;

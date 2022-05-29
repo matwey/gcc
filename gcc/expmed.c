@@ -36,6 +36,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "real.h"
 #include "recog.h"
 #include "langhooks.h"
+#include "target.h"
 
 static void store_fixed_bit_field (rtx, unsigned HOST_WIDE_INT,
 				   unsigned HOST_WIDE_INT,
@@ -454,9 +455,19 @@ store_bit_field (rtx str_rtx, unsigned HOST_WIDE_INT bitsize,
 	  ? ((GET_MODE_SIZE (fieldmode) >= UNITS_PER_WORD
 	     || GET_MODE_SIZE (GET_MODE (op0)) == GET_MODE_SIZE (fieldmode))
 	     && byte_offset % GET_MODE_SIZE (fieldmode) == 0)
-	  : (! SLOW_UNALIGNED_ACCESS (fieldmode, MEM_ALIGN (op0))
-	     || (offset * BITS_PER_UNIT % bitsize == 0
-		 && MEM_ALIGN (op0) % GET_MODE_BITSIZE (fieldmode) == 0))))
+         : ( 
+
+             /* NB! Added for AVR32, and I think this should be true for
+                all targets not using narrow volatile bitfields. If the
+                bitfield is volatile then we need to perform an access
+                consistent with the container type. */
+             !(MEM_VOLATILE_P (op0) 
+               && GET_MODE_BITSIZE (GET_MODE (op0)) != bitsize
+               && bitsize < BITS_PER_WORD
+               && !targetm.narrow_volatile_bitfield ())
+             && (! SLOW_UNALIGNED_ACCESS (fieldmode, MEM_ALIGN (op0))
+                 || (offset * BITS_PER_UNIT % bitsize == 0
+                     && MEM_ALIGN (op0) % GET_MODE_BITSIZE (fieldmode) == 0)))))
     {
       if (MEM_P (op0))
 	op0 = adjust_address (op0, fieldmode, offset);
@@ -1256,6 +1267,13 @@ extract_bit_field (rtx str_rtx, unsigned HOST_WIDE_INT bitsize,
 	   && GET_MODE_SIZE (mode1) != 0
 	   && byte_offset % GET_MODE_SIZE (mode1) == 0)
 	  || (MEM_P (op0)
+             /* NB! Added for AVR32, and I think this should be true for
+                all targets not using narrow volatile bitfields. If the
+                bitfield is volatile then we need to perform an access
+                consistent with the container type. */
+              && !(MEM_VOLATILE_P (op0)
+                   && GET_MODE_BITSIZE (GET_MODE (op0)) != bitsize
+                   && !targetm.narrow_volatile_bitfield ())
 	      && (! SLOW_UNALIGNED_ACCESS (mode, MEM_ALIGN (op0))
 		  || (offset * BITS_PER_UNIT % bitsize == 0
 		      && MEM_ALIGN (op0) % bitsize == 0)))))

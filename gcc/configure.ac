@@ -2178,7 +2178,7 @@ L2:],
   as_ver=`$gcc_cv_as --version 2>/dev/null | sed 1q`
   if echo "$as_ver" | grep GNU > /dev/null; then
 changequote(,)dnl
-    as_ver=`echo $as_ver | sed -e 's/GNU assembler \([0-9.][0-9.]*\).*/\1/'`
+    as_ver=`echo $as_ver | sed -e 's/GNU assembler\( (GNU Binutils)\)\? \([0-9.][0-9.]*\).*/\2/'`
     as_major=`echo $as_ver | sed 's/\..*//'`
     as_minor=`echo $as_ver | sed 's/[^.]*\.\([0-9]*\).*/\1/'`
 changequote([,])dnl
@@ -2991,7 +2991,7 @@ esac
 case "$target" in
   i?86*-*-* | mips*-*-* | alpha*-*-* | powerpc*-*-* | sparc*-*-* | m68*-*-* \
   | x86_64*-*-* | hppa*-*-* | arm*-*-* | strongarm*-*-* | xscale*-*-* \
-  | xstormy16*-*-* | cris-*-* | xtensa-*-* | bfin-*-* | score*-*-*)
+  | xstormy16*-*-* | cris-*-* | xtensa-*-* | bfin-*-* | score*-*-* | avr32-*-*)
     insn="nop"
     ;;
   ia64*-*-* | s390*-*-*)

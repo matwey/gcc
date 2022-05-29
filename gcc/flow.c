@@ -3327,12 +3327,12 @@ not_reg_cond (rtx x)
   if (GET_CODE (x) == NOT)
     return XEXP (x, 0);
   if (COMPARISON_P (x)
-      && REG_P (XEXP (x, 0)))
+      /* && REG_P (XEXP (x, 0))*/)
     {
-      gcc_assert (XEXP (x, 1) == const0_rtx);
+      /*gcc_assert (XEXP (x, 1) == const0_rtx);*/
 
       return gen_rtx_fmt_ee (reversed_comparison_code (x, NULL),
-			     VOIDmode, XEXP (x, 0), const0_rtx);
+			     VOIDmode, XEXP (x, 0), XEXP (x, 0) /*const0_rtx*/);
     }
   return gen_rtx_NOT (0, x);
 }

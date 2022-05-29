@@ -2676,8 +2676,12 @@ assign_parm_setup_reg (struct assign_parm_data_all *all, tree parm,
     SET_DECL_RTL (parm, parmreg);
 
   /* Copy the value into the register.  */
-  if (data->nominal_mode != data->passed_mode
-      || promoted_nominal_mode != data->promoted_mode)
+  if ( (data->nominal_mode != data->passed_mode
+        /* Added for AVR32: If passed_mode is equal
+           to promoted nominal mode why should be convert?
+           The conversion should make no difference. */
+        && data->passed_mode != promoted_nominal_mode)
+       || promoted_nominal_mode != data->promoted_mode)
     {
       int save_tree_used;
 

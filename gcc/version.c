@@ -8,7 +8,7 @@
    in parentheses.  You may also wish to include a number indicating
    the revision of your modified compiler.  */
 
-#define VERSUFFIX ""
+#define VERSUFFIX "-atmel.1.1.3.avr32linux.1"
 
 /* This is the location of the online document giving instructions for
    reporting bugs.  If you distribute a modified version of GCC,
@@ -17,9 +17,9 @@
    forward us bugs reported to you, if you determine that they are
    not bugs in your modifications.)  */
 
-const char bug_report_url[] = "<URL:http://gcc.gnu.org/bugs.html>";
+const char bug_report_url[] = "<URL:http://www.atmel.com/avr32/>";
 
 /* The complete version string, assembled from several pieces.
    BASEVER, DATESTAMP, and DEVPHASE are defined by the Makefile.  */
 
-const char version_string[] = BASEVER DATESTAMP DEVPHASE VERSUFFIX;
+const char version_string[] = BASEVER VERSUFFIX DATESTAMP DEVPHASE;

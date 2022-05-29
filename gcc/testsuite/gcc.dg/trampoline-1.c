@@ -46,6 +46,8 @@ void foo (void)
 
 int main (void)
 {
+#ifndef NO_TRAMPOLINES
   foo ();
+#endif
   return 0;
 }

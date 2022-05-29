@@ -9223,7 +9223,7 @@ validate_arglist (tree arglist, ...)
 
   do
     {
-      code = va_arg (ap, enum tree_code);
+      code = va_arg (ap, int);
       switch (code)
 	{
 	case 0:

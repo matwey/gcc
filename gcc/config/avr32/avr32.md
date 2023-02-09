@@ -2423,7 +2423,7 @@ switch(GET_MODE(operands[0]))
 	(compare:SF
 	 (match_operand:SF 0 "general_operand" "")
 	 (match_operand:SF 1 "general_operand"  "")))]
-  "TARGET_ARCH_FPU && TARGET_HARD_FLOAT"
+  "TARGET_EMIT_FPU_INSNS"
   "{
    if ( !REG_P(operands[0]) )
      operands[0] = force_reg(SFmode, operands[0]);
@@ -2717,7 +2717,7 @@ switch(GET_MODE(operands[0]))
                      (const_int 0)))]
 ""
 {
-  if(TARGET_HARD_FLOAT && TARGET_ARCH_FPU)
+  if(TARGET_EMIT_FPU_INSNS)
     FAIL;
 })
 
@@ -2845,14 +2845,14 @@ switch(GET_MODE(operands[0]))
 		      (pc)))]
   ""
   {
-    if (TARGET_HARD_FLOAT && TARGET_ARCH_FPU && (avr32_branch_type == CMP_SF))
+    if (TARGET_EMIT_FPU_INSNS && (avr32_branch_type == CMP_SF))
        return get_attr_length(insn) == 6 ? "brvs .+6\;br<cond> %0" : "brvs .+8\;br<cond> %0";
     else
        return "br<cond> %0";
   }
   [(set_attr "type" "branch")
    (set (attr "length")
-	(if_then_else (eq (const_int 1)(symbol_ref "TARGET_HARD_FLOAT && TARGET_ARCH_FPU"))
+	(if_then_else (eq (const_int 1)(symbol_ref "TARGET_EMIT_FPU_INSNS"))
 		      (if_then_else 
 			   (and (le (minus (match_dup 0) (pc)) (const_int 254))
 		    (le (minus (pc) (match_dup 0)) (const_int 256)))
@@ -2905,14 +2905,14 @@ switch(GET_MODE(operands[0]))
 		      (pc)))]
   ""
   {
-	if(TARGET_HARD_FLOAT && TARGET_ARCH_FPU && (avr32_branch_type == CMP_SF))
+	if(TARGET_EMIT_FPU_INSNS && (avr32_branch_type == CMP_SF))
 		return "brvs .+8\;br<cond> %l0";
 	else
 		return "br<cond> %l0";
   }
   [(set_attr "type" "branch")
    (set (attr "length") 
-    (cond [(eq (const_int 1)(symbol_ref "TARGET_HARD_FLOAT && TARGET_ARCH_FPU"))
+    (cond [(eq (const_int 1)(symbol_ref "TARGET_EMIT_FPU_INSNS"))
 		       (const_int 8)]
                (const_int 4)))
    (set_attr "cc" "none")])
@@ -2925,14 +2925,14 @@ switch(GET_MODE(operands[0]))
 		      (label_ref (match_operand 0 "" ""))))]
   ""
   {
-    if (TARGET_HARD_FLOAT && TARGET_ARCH_FPU && (avr32_branch_type == CMP_SF))
+    if (TARGET_EMIT_FPU_INSNS && (avr32_branch_type == CMP_SF))
        return "brvs %0\;br<invcond> %0";
     else
        return "br<invcond> %0";
   }
   [(set_attr "type" "branch")
    (set (attr "length")
-	(if_then_else (eq (const_int 1)(symbol_ref "TARGET_HARD_FLOAT && TARGET_ARCH_FPU"))
+	(if_then_else (eq (const_int 1)(symbol_ref "TARGET_EMIT_FPU_INSNS"))
 		      (if_then_else 
 			   (and (le (minus (match_dup 0) (pc)) (const_int 254))
 		    (le (minus (pc) (match_dup 0)) (const_int 256)))
@@ -2985,14 +2985,14 @@ switch(GET_MODE(operands[0]))
 		      (label_ref (match_operand 0 "" ""))))]
   ""
   {
-    if (TARGET_HARD_FLOAT && TARGET_ARCH_FPU && (avr32_branch_type == CMP_SF))
+    if (TARGET_EMIT_FPU_INSNS && (avr32_branch_type == CMP_SF))
        return "brvs %l0\;br<invcond> %l0";
     else
        return "br<invcond> %0";
   }
   [(set_attr "type" "branch")
    (set (attr "length") 
-    (cond [(eq (const_int 1)(symbol_ref "TARGET_HARD_FLOAT && TARGET_ARCH_FPU"))
+    (cond [(eq (const_int 1)(symbol_ref "TARGET_EMIT_FPU_INSNS"))
 		       (const_int 8)]
                (const_int 4)))
    (set_attr "cc" "none")])
